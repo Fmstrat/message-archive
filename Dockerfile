@@ -7,9 +7,14 @@ ENV SIGNAL_PASS=""
 ENV MY_NUMBER=""
 
 RUN apt-get update
-RUN apt-get install -y python3 wget unzip
+RUN apt-get install -y python3 curl wget unzip
 RUN rm -rf /var/lib/apt/lists/*
-RUN wget "https://github.com/xeals/signal-back/releases/download/v0.1.6/signal-back_linux_amd64" -O /usr/bin/signal-back
+RUN curl -s https://api.github.com/repos/xeals/signal-back/releases/latest \
+	| grep "browser_download_url.*signal-back_linux_amd64" \
+	| grep -v sha256 \
+	| cut -d : -f 2,3 \
+	| tr -d \" \
+	| wget -O /usr/bin/signal-back -qi -
 RUN chmod +x /usr/bin/signal-back
 
 COPY html /var/www/html
