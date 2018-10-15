@@ -1,0 +1,16 @@
+version: '2.1'
+
+services:
+
+  message-archive:
+    image: nowsci/message-archive
+    container_name: message-archive
+    environment:
+      - SIGNAL_PASS=AAAAA BBBBB CCCCC DDDDD EEEEE FFFFF
+      - MY_NUMBER=12223334444
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./message-archive/data:/data
+    ports:
+      - 80:80
+    restart: always
