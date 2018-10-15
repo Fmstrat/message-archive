@@ -3,8 +3,8 @@ A web-based message archive viewer for Signal and Google Voice.
 
 <table border=0 padding=1>
    <tr>
-     <td><img src="screenshots/conversations.jpg" width=150></td>
-     <td><img src="screenshots/messages.jpg" width=150></td>
+     <td><img src="screenshots/conversations.jpg" width=300></td>
+     <td><img src="screenshots/messages.jpg" width=300></td>
   </tr>
 </table>
 
@@ -45,7 +45,7 @@ This will:
 - Create a blank database
 - Secure the site with username `admin` and password `password` via `./message-archive/data/htpasswd`
 
-You will notice a folder exists now called `./message-archive/data/backups/watch`. Place your Signal `.backup` files and Google Takeout `.zip` files there. Then run the import again:
+You will notice a folder exists now called `./message-archive/data/backups/watch`. Place your Signal `.backup` files and Google Takeout `.zip` files there. Takeout backgups for Google Voice can be generated at https://takeout.google.com/. Then run the import again:
 ```
 docker exec -ti message-archive import
 ```
@@ -56,7 +56,6 @@ While docker is the preferred way to run message-archive, you can run it manuall
 - Signal-back from https://github.com/xeals/signal-back
 - unzip
 - python3
-- wget
 
 After that, to run imports you can use `message-archive.py`:
 ```
