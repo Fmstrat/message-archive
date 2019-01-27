@@ -77,7 +77,8 @@ def processVoice(f, c):
             body = ""
             bodyxml = div.getElementsByTagName('q')
             if len(bodyxml) > 0 and len(bodyxml[0].childNodes) > 0:
-                    body = bodyxml[0].childNodes[0].nodeValue
+                    for b in bodyxml[0].childNodes:
+                        body += b.toxml()
             date = div.getElementsByTagName('abbr')[0].attributes['title'].value
             date = datetime.datetime.strptime(''.join(date.rsplit(':', 1)), "%Y-%m-%dT%H:%M:%S.%f%z")
             utcoffset = date.strftime("%z").replace('0', '')

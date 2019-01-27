@@ -92,13 +92,21 @@
 				echo "<div style='clear:both'></div>";
 				echo "<div class='".$prevclass."-space'>&nbsp;</div>";
 			if ($row["img"] != '') {
-				$img = "<a href='images/voice/".$row["img"]."' target='_new'><img height=200 src='image.gif' class='lazy' data-src='images/voice/".$row["img"]."'></a>";
+				$imgfile = "images/voice/".$row["img"];
+				if (!file_exists($imgfile)) {
+					$imgfile = str_replace("-1.", "-(1).", $imgfile);
+					if (!file_exists($imgfile)) {
+						$imgfile = str_replace("-(1).", "-.", $imgfile);
+					}
+				}
+				$img = "<a href='".$imgfile."' target='_new'><img height=200 src='image.gif' class='lazy' data-src='".$imgfile."'></a>";
 				echo "<div style='text-align:center' class='talk-bubble round ".$class." ".$curcolor."'><div style='text-align:center' class='talktext'>";
 				echo $img;
 				echo "</div></div>";
 			}
 			if ($body != "") {
 				echo "<div class='talk-bubble round ".$class." ".$curcolor."'><div class='talktext'>";
+				$body = preg_replace('/((http|ftp|https):\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&amp;:\/~+#-]*[\w@?^=%&amp;\/~+#-])?)/', '<a style="color: inherit;" href="\1">\1</a>', $body);
 				echo $body;
 				echo "</div></div>";
 			}
