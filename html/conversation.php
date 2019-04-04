@@ -54,6 +54,8 @@
 			$msgtype = $row['msgtype'];
 			if ($source == "voice")
 				$source = "Google Voice";
+			elseif ($source == "hangouts")
+				$source = "Hangouts";
 			else
 				$source = "Signal";
 			$date = $row['strdate'];
@@ -93,6 +95,8 @@
 				echo "<div class='".$prevclass."-space'>&nbsp;</div>";
 			if ($row["img"] != '') {
 				$imgfile = "images/voice/".$row["img"];
+				if ($row["source"] == "hangouts")
+					$imgfile = "images/hangouts/".$row["img"];
 				if (!file_exists($imgfile)) {
 					$imgfile = str_replace("-1.", "-(1).", $imgfile);
 					if (!file_exists($imgfile)) {

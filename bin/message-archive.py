@@ -6,9 +6,13 @@ import datetime
 import os
 import sqlite3
 import argparse
+import json
+import urllib
+from urllib.parse import urlparse
+import urllib.request
 
 parser = argparse.ArgumentParser(
-    description='Import Signal and Google Voice backups into Sqlite3.',
+    description='Import Signal, Google Voice, and Hangouts backups into Sqlite3.',
     formatter_class=lambda prog: argparse.HelpFormatter(prog,max_help_position=150, width=150))
 parser.add_argument('-p', '--signal-pass', help='Password for signal backup', default='')
 parser.add_argument('-s', '--signal-back', help='Path to signal-back', default='/usr/bin/signal-back')
@@ -16,6 +20,90 @@ requiredArguments = parser.add_argument_group('required arguments')
 requiredArguments.add_argument('-m', '--my-number', help='Your phone number. Format: "12223334444"', required=True)
 requiredArguments.add_argument('-d', '--data-dir', help='The data directory', required=True)
 args = parser.parse_args()
+
+def processHangoutsPeople(f, c):
+    with open(f, mode='r', encoding="utf-8") as myfile:
+        data = json.load(myfile)
+    conversations = data["conversations"];
+    for conversation in conversations:
+        for pd in conversation["conversation"]["conversation"]["participant_data"]:
+            fn = ""
+            address = ""
+            if "phone_number" in pd and "e164" in pd["phone_number"]:
+                address = pd["phone_number"]["e164"].replace("+", "")
+            if "fallback_name" in pd:
+                tmpfn = pd["fallback_name"]
+            if tmpfn != "" and "+" not in tmpfn and address != "":
+                fn = tmpfn
+            if address != "":
+                    if fn == "":
+                        c.execute("insert into people (source, fn, address) values ('hangouts', ?, ?);", (address, address))
+                    else:
+                        c.execute("insert or replace into people (id, source, fn, address) values ((select id from people where address = ?), 'hangouts', ?, ?);", (address, fn, address))
+
+def processHangouts(f, c):
+    with open(f, mode='r', encoding="utf-8") as myfile:
+        data = json.load(myfile)
+    conversations = data["conversations"];
+    for conversation in conversations:
+        participants = []
+        for pd in conversation["conversation"]["conversation"]["participant_data"]:
+            gaia_id = pd["id"]["gaia_id"]
+            address = ""
+            if "phone_number" in pd and "e164" in pd["phone_number"]:
+                address = pd["phone_number"]["e164"].replace("+", "")
+            if address != "":
+                participants.append({ "address": address, "gaia_id": gaia_id })
+            else:
+                participants.append({ "address": mynumbers[0], "gaia_id": gaia_id })
+        #print(participants)
+        address = ""
+        if len(participants) == 1:
+            address = participants[0]["address"]
+        else:
+            for p in participants:
+                if p["address"] not in mynumbers:
+                    if address == "":
+                        address = p["address"]
+                    else:
+                        address += ", "+p["address"]
+            if address == "":
+                address = mynumbers[0]
+        for event in conversation["events"]:
+            gaia_id = event["sender_id"]["gaia_id"]
+            sender = ""
+            for p in participants:
+                if gaia_id == p["gaia_id"]:
+                    sender = p["address"]
+            date = event["timestamp"]
+            date = datetime.datetime.fromtimestamp(int(int(date)/10**6.))
+            date = date.strftime("%Y-%m-%d %H:%M:%S.%f")
+            body = ""
+            if "segment" in event["chat_message"]["message_content"]:
+                for s in event["chat_message"]["message_content"]["segment"]:
+                    body += s["text"]
+            attachments = []
+            if "attachment" in event["chat_message"]["message_content"]:
+                for a in event["chat_message"]["message_content"]["attachment"]:
+                    if "plus_audio_v2" in a["embed_item"]:
+                        attachments.append(a["embed_item"]["plus_audio_v2"]["url"])
+                    if "plus_photo" in a["embed_item"]:
+                        attachments.append(a["embed_item"]["plus_photo"]["url"])
+            msgtype = 2
+            if sender not in mynumbers:
+                msgtype = 1
+            if body is not None and body != "":
+                c.execute("insert into messages (source, address, sender, date, body, img, msgtype) values ('hangouts', ?, ?, ?, ?, '', ?);", (address, sender, date, body, msgtype))
+            for a in attachments:
+                img = os.path.basename(urlparse(a).path).replace("%25", "").replace("%", "")
+                if not img.endswith(".jpg"):
+                    img += ".jpg"
+                img = event["timestamp"] + "-" + img
+                imgpath = os.path.join(hangoutsimagesdir, img)
+                if not os.path.isfile(imgpath):
+                    print(" - Downloading: " + a)
+                    urllib.request.urlretrieve(a, imgpath)
+                    c.execute("insert into messages (source, address, sender, date, body, img, msgtype) values ('hangouts', ?, ?, ?, '', ?, ?);", (address, sender, date, img, msgtype))
 
 def processVoicePeople(f, c):
     with open(f, mode='r', encoding="utf-8") as myfile:
@@ -159,6 +247,11 @@ def loopFilesForPeople():
                     voicefullpath = os.path.abspath(os.path.join(voicedirectory,voicefilename))
                     print(" - Processing people: " + voicefilename)
                     processVoicePeople(voicefullpath, c)
+            os.popen("cd " + tmpdir + "; unzip " + fullpath + " *'Hangouts.json'").read()
+            hangoutsfile = os.path.join(tmpdir,"Takeout/Hangouts/Hangouts.json")
+            if os.path.isfile(hangoutsfile):
+                print(" - Processing people: " + hangoutsfile)
+                processHangoutsPeople(hangoutsfile, c)
         if os.path.exists(tmpdir):
             rmtree(tmpdir)
     conn.commit()
@@ -192,6 +285,11 @@ def loopFiles():
                     print(" - Processing: " + voicefilename)
                     processVoice(voicefullpath, c)
                     processVoiceMedia(voicedirectory, c)
+            os.popen("cd " + tmpdir + "; unzip " + fullpath + " *'Hangouts.json'").read()
+            hangoutsfile = os.path.join(tmpdir,"Takeout/Hangouts/Hangouts.json")
+            if os.path.isfile(hangoutsfile):
+                print(" - Processing: " + hangoutsfile)
+                processHangouts(hangoutsfile, c)
         if os.path.exists(tmpdir):
             rmtree(tmpdir)
         archivedir = os.path.join(backupdir,"processed")
@@ -218,6 +316,8 @@ def init():
         os.makedirs(os.path.join(backupdir,"processed"))
     if not os.path.exists(voiceimagesdir):
         os.makedirs(voiceimagesdir)
+    if not os.path.exists(hangoutsimagesdir):
+        os.makedirs(hangoutsimagesdir)
     if not os.path.exists(database):
         makeDB()
 
@@ -230,11 +330,12 @@ datadir = args.data_dir
 tmpdir = "/tmp/message-archive"
 backupdir = os.path.join(datadir,"backups")
 voiceimagesdir = os.path.join(datadir,"images/voice")
+hangoutsimagesdir = os.path.join(datadir,"images/hangouts")
 database = os.path.join(datadir,"messages.db")
 if signalpassword == "":
     print("Skipping Signal files as signal-back and password were not provided.")
 if len(mynumbers) == 0:
-    print("Skipping Google Voice files as phone number was not provided.")
+    print("Skipping Google Voice and Hangouts files as phone number was not provided.")
 init()
 loopFilesForPeople()
 loopFiles()

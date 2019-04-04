@@ -1,5 +1,5 @@
 # message-archive
-A web-based message archive viewer for Signal and Google Voice.
+A web-based message archive viewer for Signal, Google Voice, and Hangouts.
 
 <table border=0 padding=1>
    <tr>
@@ -45,7 +45,7 @@ This will:
 - Create a blank database
 - Secure the site with username `admin` and password `password` via `./message-archive/data/htpasswd`
 
-You will notice a folder exists now called `./message-archive/data/backups/watch`. Place your Signal `.backup` files and Google Takeout `.zip` files there. Takeout backups for Google Voice can be generated at https://takeout.google.com/. Then run the import again:
+You will notice a folder exists now called `./message-archive/data/backups/watch`. Place your Signal `.backup` files and Google Takeout `.zip` files there. Takeout backups for Google Voice and Hangouts can be generated at https://takeout.google.com/. Then run the import again:
 ```
 docker exec -ti message-archive import
 ```
