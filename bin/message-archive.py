@@ -8,6 +8,8 @@ import sqlite3
 import argparse
 import json
 import urllib
+import re
+from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import urllib.request
 
@@ -16,6 +18,7 @@ parser = argparse.ArgumentParser(
     formatter_class=lambda prog: argparse.HelpFormatter(prog,max_help_position=150, width=150))
 parser.add_argument('-p', '--signal-pass', help='Password for signal backup', default='')
 parser.add_argument('-s', '--signal-back', help='Path to signal-back', default='/usr/bin/signal-back')
+parser.add_argument('-t', '--signalbackup-tools', help='Path to signalbackup-tools', default='/usr/bin/signalbackup-tools')
 requiredArguments = parser.add_argument_group('required arguments')
 requiredArguments.add_argument('-m', '--my-number', help='Your phone number. Format: "12223334444"', required=True)
 requiredArguments.add_argument('-d', '--data-dir', help='The data directory', required=True)
@@ -203,13 +206,15 @@ def processVoiceMedia(d, c):
 
 def processSignal(f, c):
     with open(f, mode='r', encoding="utf-8") as myfile:
-            data=myfile.read()
+            fdata=myfile.read()
     conversationwith = ""
-    xmldoc = minidom.parseString(data)
+    fdata = re.sub(r'<smses count=.*?>', '<smses>', fdata)
+    data = BeautifulSoup(fdata, 'html.parser')
+    xmldoc = minidom.parseString(str(data))
     smsxml = xmldoc.getElementsByTagName('sms')
     for sms in smsxml:
         body = sms.attributes['body'].value
-        date = sms.attributes['date_sent'].value
+        date = sms.attributes['date'].value
         date = datetime.datetime.utcfromtimestamp(int(date)/1000)
         date = date.strftime("%Y-%m-%d %H:%M:%S.%f")
         address = sms.attributes['address'].value.replace("+", "")
@@ -268,9 +273,10 @@ def loopFiles():
         fullpath = os.path.abspath(os.path.join(directory,filename))
         if filename.endswith(".backup") and signalpassword != "":
             print("Processing: " + filename)
-            os.makedirs(os.path.join(tmpdir,"images"))
-            os.popen("cd " + tmpdir + "; " + signalbackup + " format -f XML -p '" + signalpassword + "' " + fullpath + " > " + tmpdir + "/signal.xml").read()
-            os.popen("cd " + tmpdir + "; " + signalbackup + " extract -o images -p '" + signalpassword + "' " + fullpath).read()
+            os.makedirs(os.path.join(tmpdir,"#images"))
+            nospacepass = ''.join(signalpassword.split())
+            os.popen("cd " + tmpdir + "; " + signalbackuptools + " " + fullpath + " " + nospacepass + " --exportxml " + tmpdir + "/signal.xml").read()
+            #os.popen("cd " + tmpdir + "; " + signalbackup + " extract -o images -p '" + signalpassword + "' " + fullpath).read()
             processSignal(os.path.join(tmpdir,'signal.xml'), c)
         if filename.endswith(".zip") and len(mynumbers) > 0:
             print("Processing: " + filename)
@@ -325,6 +331,7 @@ mynumbers = []
 if args.my_number != "":
     mynumbers.append(args.my_number)
 signalbackup = args.signal_back
+signalbackuptools = args.signalbackup_tools
 signalpassword = args.signal_pass
 datadir = args.data_dir
 tmpdir = "/tmp/message-archive"
