@@ -25,6 +25,7 @@ services:
     environment:
       - SIGNAL_PASS=AAAAA BBBBB CCCCC DDDDD EEEEE FFFFF
       - MY_NUMBER=12223334444
+      - DISCORD_NAME=User#1111
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./message-archive/data:/data
@@ -64,11 +65,22 @@ usage: message-archive.py [-h] [-p SIGNAL_PASS] [-s SIGNAL_BACK] -m MY_NUMBER -d
 Import Signal and Google Voice backups into Sqlite3.
 
 optional arguments:
-  -h, --help                                 show this help message and exit
-  -p SIGNAL_PASS, --signal-pass SIGNAL_PASS  Password for signal backup
-  -s SIGNAL_BACK, --signal-back SIGNAL_BACK  Path to signal-back
+  -h, --help                                   show this help message and exit
+  -p SIGNAL_PASS, --signal-pass SIGNAL_PASS    Password for signal backup
+  -s SIGNAL_BACK, --signal-back SIGNAL_BACK    Path to signal-back
+  -n DISCORD_NAME, --discord-name DISCORD_NAME Name on Discord
 
 required arguments:
   -m MY_NUMBER, --my-number MY_NUMBER        Your phone number. Format: "12223334444"
   -d DATA_DIR, --data-dir DATA_DIR           The data directory
+```
+
+## Getting JSON files from Discord
+Use:
+```
+docker run -ti --rm -v ${PWD}:${PWD} -w ${PWD} docker.io/tyrrrz/discordchatexporter exportdm -f Json -t <token>
+```
+To get your token, run:
+```
+docker run -ti --rm -v ${PWD}:${PWD} -w ${PWD} docker.io/tyrrrz/discordchatexporter guide
 ```

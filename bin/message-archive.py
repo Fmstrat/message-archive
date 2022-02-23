@@ -9,6 +9,7 @@ import argparse
 import json
 import urllib
 import re
+import json
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import urllib.request
@@ -18,6 +19,7 @@ parser = argparse.ArgumentParser(
     formatter_class=lambda prog: argparse.HelpFormatter(prog,max_help_position=150, width=150))
 parser.add_argument('-p', '--signal-pass', help='Password for signal backup', default='')
 parser.add_argument('-s', '--signal-back', help='Path to signal-back', default='/usr/bin/signal-back')
+parser.add_argument('-n', '--discord-name', help='Name on Discord', default='')
 parser.add_argument('-t', '--signalbackup-tools', help='Path to signalbackup-tools', default='/usr/bin/signalbackup-tools')
 requiredArguments = parser.add_argument_group('required arguments')
 requiredArguments.add_argument('-m', '--my-number', help='Your phone number. Format: "12223334444"', required=True)
@@ -202,12 +204,27 @@ def processVoiceMedia(d, c):
             if not os.path.exists(new):
                 orig = os.path.join(d,img)
                 move(orig, new)
-    
+
+def processDiscord(f, c):
+    with open(f, mode='r', encoding="utf-8") as myfile:
+            fdata=myfile.read()
+    data = json.loads(fdata)
+    name = data['channel']['name']
+    address = data['channel']['id']
+    c.execute("insert or replace into people (id, source, fn, address) values ((select id from people where address = ?), 'discord', ?, ?);", (address, name, address))
+    for message in data['messages']:
+        body = message['content']
+        date = message['timestamp']
+        sender = message['author']['name'] + '#' + message['author']['discriminator']
+        msgtype = 2
+        if sender.lower() not in mynumbers:
+            msgtype = 1
+        c.execute("insert into messages (source, address, sender, date, body, img, msgtype) values ('discord', ?, ?, ?, ?, '', ?);", (address, sender, date, body, msgtype))
+
 
 def processSignal(f, c):
     with open(f, mode='r', encoding="utf-8") as myfile:
             fdata=myfile.read()
-    conversationwith = ""
     fdata = re.sub(r'<smses count=.*?>', '<smses>', fdata)
     data = BeautifulSoup(fdata, 'html.parser')
     xmldoc = minidom.parseString(str(data))
@@ -271,15 +288,18 @@ def loopFiles():
     for file in os.listdir(encdir):
         filename = os.fsdecode(file)
         fullpath = os.path.abspath(os.path.join(directory,filename))
+        if filename.endswith(".json"):
+            print("Processing [Discord]: " + filename)
+            processDiscord(fullpath, c)
         if filename.endswith(".backup") and signalpassword != "":
-            print("Processing: " + filename)
+            print("Processing [Signal]: " + filename)
             os.makedirs(os.path.join(tmpdir,"#images"))
             nospacepass = ''.join(signalpassword.split())
             os.popen("cd " + tmpdir + "; " + signalbackuptools + " " + fullpath + " " + nospacepass + " --exportxml " + tmpdir + "/signal.xml").read()
             #os.popen("cd " + tmpdir + "; " + signalbackup + " extract -o images -p '" + signalpassword + "' " + fullpath).read()
             processSignal(os.path.join(tmpdir,'signal.xml'), c)
         if filename.endswith(".zip") and len(mynumbers) > 0:
-            print("Processing: " + filename)
+            print("Processing [Voice]: " + filename)
             os.makedirs(tmpdir)
             os.popen("cd " + tmpdir + "; unzip " + fullpath + " *' - Text - '* *'Group Conversation - '*").read()
             voicedirectory = os.path.join(tmpdir,"Takeout/Voice/Calls")
@@ -330,6 +350,8 @@ def init():
 mynumbers = []
 if args.my_number != "":
     mynumbers.append(args.my_number)
+if args.discord_name != "":
+    mynumbers.append(args.discord_name.lower())
 signalbackup = args.signal_back
 signalbackuptools = args.signalbackup_tools
 signalpassword = args.signal_pass

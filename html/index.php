@@ -24,7 +24,6 @@
 					while ($person = $people->fetchArray()) {
 						if ($person['address'] == $address && $person['fn'] != $address) {
 							$fn = $person['fn'];
-							break;
 						}
 					}
 					if ($displayname == "")

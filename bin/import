@@ -4,4 +4,4 @@ if [ ! -f ${DATA_DIR}/htpasswd ]; then
 	echo 'admin:$apr1$IQ8CX8hZ$Eb91XcXqeeTov88SUZbaY.' > ${DATA_DIR}/htpasswd
 fi
 
-/usr/bin/message-archive.py -d /data -p "$SIGNAL_PASS" -m "$MY_NUMBER"
+/usr/bin/message-archive.py -d /data -p "$SIGNAL_PASS" -m "$MY_NUMBER" -n "$DISCORD_NAME"

@@ -19,7 +19,9 @@
 	$fn = $address;
 	if (isset($_GET["fn"]))
 		$fn = $_GET["fn"];
-	$formattedphone = preg_replace('~.*(\d{3})[^\d]{0,7}(\d{3})[^\d]{0,7}(\d{4}).*~', '($1) $2-$3', $address);
+	$formattedphone = $address;
+	if (strlen($address) < 18)
+		$formattedphone = preg_replace('~.*(\d{3})[^\d]{0,7}(\d{3})[^\d]{0,7}(\d{4}).*~', '($1) $2-$3', $address);
 ?>
 	<head>
 		<title><?php echo $fn;?> - Message Archive</title>
@@ -37,6 +39,7 @@
 	<div class='container'>
 	<?php
 		$prevclass = "";
+		$prevdate = "";
 		$prevsource = "";
 		$prevsender = "";
 		$prevsender = "";
@@ -56,6 +59,8 @@
 				$source = "Google Voice";
 			elseif ($source == "hangouts")
 				$source = "Hangouts";
+			elseif ($source == "discord")
+				$source = "Discord [" . $row['sender'] . "]";
 			else
 				$source = "Signal";
 			$date = $row['strdate'];
