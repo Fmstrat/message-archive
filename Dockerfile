@@ -1,4 +1,4 @@
-FROM fedora:31 AS signalbackup-tools
+FROM fedora:41 AS signalbackup-tools
 ENV \
     S_PATH=/opt/signalbackup-tools \
     S_GHUB=https://github.com/bepaald/signalbackup-tools.git
@@ -10,7 +10,8 @@ dnf -y install \
     openssl-devel \
     sqlite-devel \
     which \
-    git && \
+    git \
+    dbus-devel && \
 echo "### Setup build structure ###" && \
 mkdir -p ${S_PATH}
 RUN \
@@ -19,12 +20,11 @@ echo "### Retrieve signalbackup-tools source ###" && \
 git clone ${S_GHUB} ${S_PATH} && \
 echo "### Make signalbackup-tools ###" && \
 cd ${S_PATH} && \
-sh BUILDSCRIPT.sh
+bash ./BUILDSCRIPT.bash
 WORKDIR ${S_PATH}
 ENTRYPOINT [ "signalbackup-tools" ]
 
 FROM php:apache
-MAINTAINER nospam <noreply@nospam.nospam>
 
 ENV PYTHONUNBUFFERED=0
 ENV DATA_DIR="/data"
@@ -35,7 +35,7 @@ COPY --from=signalbackup-tools /opt/signalbackup-tools/signalbackup-tools /usr/b
 
 RUN apt-get update &&\
     apt-get install -y python3 python3-pip curl wget unzip &&\
-    pip install beautifulsoup4 &&\
+    pip install beautifulsoup4 --break-system-packages &&\
     rm -rf /var/lib/apt/lists/* &&\
     curl -s https://api.github.com/repos/xeals/signal-back/releases/latest \
 	| grep "browser_download_url.*signal-back_linux_amd64" \
